@@ -41,7 +41,7 @@ jobs:
           context: .
           load: true
           tags: lease-lurker:test
-      - uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: lease-lurker:test
           severity: CRITICAL,HIGH
