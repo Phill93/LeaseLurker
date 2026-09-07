@@ -6,6 +6,18 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-07
+
+### Hinzugefügt
+
+- Veröffentlichung eines signierten Multi-Arch-Container-Images über GHCR.
+- SBOM und Build-Provenance für veröffentlichte Container-Images.
+
+### Geändert
+
+- Compose verwendet standardmäßig das öffentliche GHCR-Image; lokale Builds
+  erfolgen über eine separate Override-Datei.
+
 ## [0.1.0] - 2026-09-07
 
 ### Hinzugefügt
@@ -20,5 +32,6 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Non-Root-Container, Compose-Konfiguration und lokaler Kea-Entwicklungsmock.
 - GitHub-CI für Formatierung, Linting, Typprüfung, Tests, Security und Image-Build.
 
-[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Phill93/LeaseLurker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Phill93/LeaseLurker/releases/tag/v0.1.0

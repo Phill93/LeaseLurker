@@ -1,7 +1,6 @@
 services:
   lease-lurker:
-    build: .
-    image: lease-lurker:local
+    image: ghcr.io/phill93/leaselurker:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

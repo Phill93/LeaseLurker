@@ -37,7 +37,7 @@ Beispielsubnetzen und -leases bereit:
 
 ```bash
 cp config.example.yaml config.yaml
-docker compose -f compose.yaml -f compose.mock.yaml up --build
+docker compose -f compose.yaml -f compose.build.yaml -f compose.mock.yaml up --build
 ```
 
 LeaseLurker verwendet dabei automatisch `http://mock-kea:8000/`. Subnetz 1 ist
@@ -92,12 +92,30 @@ versioniert. Quelle: [IEEE Registration Authority](https://standards.ieee.org/pr
 
 ```bash
 cp config.example.yaml config.yaml
-docker compose up --build
+docker compose pull
+docker compose up -d
 ```
 
 Kea läuft als Dienst auf dem Docker-Host. Compose bildet dafür
 `host.docker.internal` auf `host-gateway` ab. Der Container läuft ohne Root-Rechte,
 ohne Linux-Capabilities und mit schreibgeschütztem Dateisystem.
+
+Das öffentliche Multi-Arch-Image für AMD64 und ARM64 liegt unter
+`ghcr.io/phill93/leaselurker`. Stabile Releases erhalten vollständige SemVer-,
+Minor-, Major- und `latest`-Tags. Für einen lokalen Image-Build:
+
+```bash
+docker compose -f compose.yaml -f compose.build.yaml up --build
+```
+
+Veröffentlichte Images enthalten SBOM und Build-Provenance und werden über
+GitHub OIDC keyless signiert. Eine Signatur kann mit Cosign geprüft werden:
+
+```bash
+cosign verify ghcr.io/phill93/leaselurker:latest \
+  --certificate-identity-regexp '^https://github.com/Phill93/LeaseLurker/.github/workflows/release-image.yml@refs/tags/v' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
+```
 
 ## Release
 
@@ -109,8 +127,9 @@ Anwendung aus den installierten Metadaten gelesen. Für einen Release:
 2. `poetry check --lock`, Ruff, mypy, pytest, `pip-audit` und den Container-Build
    erfolgreich ausführen.
 3. Wheel und sdist mit `poetry build` erzeugen und aus dem Wheel testen.
-4. Den geprüften Commit mit einem signierten Tag `v<Version>` markieren und erst
-   anschließend Repository und Container veröffentlichen.
+4. Den geprüften Commit mit einem signierten Tag `v<Version>` markieren und ein
+   GitHub-Release veröffentlichen. Der Release-Workflow scannt AMD64 und ARM64
+   separat und veröffentlicht das Image nur nach erfolgreichen Prüfungen.
 
 ## Architektur und Betrieb
 

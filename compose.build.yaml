@@ -1,0 +1,4 @@
+services:
+  lease-lurker:
+    build: .
+    image: lease-lurker:local
