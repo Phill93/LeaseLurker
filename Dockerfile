@@ -12,7 +12,8 @@ ENV VIRTUAL_ENV=/opt/lease-lurker \
 COPY pyproject.toml poetry.lock README.md LICENSE ./
 COPY src ./src
 RUN poetry install --only main --no-root && poetry build --format wheel && \
-    pip install --no-cache-dir dist/*.whl
+    pip install --no-cache-dir dist/*.whl && \
+    pip uninstall --yes msgpack setuptools
 
 FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
@@ -21,7 +22,9 @@ ENV PATH="/opt/lease-lurker/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     LEASELURKER_CONFIG=/etc/lease-lurker/config.yaml
 
-RUN addgroup --system lease-lurker && adduser --system --ingroup lease-lurker lease-lurker
+RUN python -m pip uninstall --yes msgpack setuptools && \
+    addgroup --system lease-lurker && \
+    adduser --system --ingroup lease-lurker lease-lurker
 COPY --from=builder /opt/lease-lurker /opt/lease-lurker
 COPY --chown=lease-lurker:lease-lurker config.example.yaml /etc/lease-lurker/config.yaml
 
