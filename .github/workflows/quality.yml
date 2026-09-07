@@ -1,0 +1,49 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - uses: snok/install-poetry@v1
+        with:
+          version: 2.4.1
+          virtualenvs-in-project: true
+      - run: poetry sync
+      - run: poetry run ruff format --check .
+      - run: poetry run ruff check .
+      - run: poetry run mypy src
+      - run: poetry run pytest
+      - run: poetry build
+      - run: poetry run pip-audit
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: lease-lurker:test
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: lease-lurker:test
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true

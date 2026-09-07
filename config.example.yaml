@@ -1,0 +1,15 @@
+kea:
+  url: http://host.docker.internal:8000/
+  timeout_seconds: 5.0
+cache:
+  ttl_seconds: 30
+  stale_after_seconds: 300
+subnets:
+  - id: 1
+    visible: true
+    # name: Office network
+  - id: 2
+    visible: false
+web:
+  default_locale: de
+  page_size: 50

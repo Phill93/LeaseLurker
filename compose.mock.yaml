@@ -1,0 +1,25 @@
+services:
+  mock-kea:
+    image: python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+    command: ["python", "/app/mock_kea.py"]
+    volumes:
+      - ./dev/mock_kea.py:/app/mock_kea.py:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m,mode=1777
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  lease-lurker:
+    environment:
+      LEASELURKER_KEA_URL: http://mock-kea:8000/
+    depends_on:
+      mock-kea:
+        condition: service_healthy

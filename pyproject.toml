@@ -1,0 +1,80 @@
+[project]
+name = "lease-lurker"
+version = "0.1.0"
+description = "Read-only web interface for discovering active DHCP leases"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+authors = [{ name = "Daniel Bacher" }]
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+  "babel>=2.17,<3.0",
+  "fastapi>=0.141,<1.0",
+  "httpx>=0.28,<1.0",
+  "jinja2>=3.1,<4.0",
+  "pydantic>=2.12,<3.0",
+  "python-multipart>=0.0.20,<1.0",
+  "pyyaml>=6.0,<7.0",
+  "uvicorn>=0.35,<1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/Phill93/LeaseLurker"
+Issues = "https://github.com/Phill93/LeaseLurker/issues"
+
+[project.scripts]
+lease-lurker = "lease_lurker.main:run"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.18,<2.0",
+  "pip-audit>=2.9,<3.0",
+  "pytest>=9.0,<10.0",
+  "pytest-asyncio>=1.2,<2.0",
+  "pytest-cov>=7.0,<8.0",
+  "ruff>=0.15,<1.0",
+]
+
+[tool.poetry]
+packages = [{ include = "lease_lurker", from = "src" }]
+include = [
+  { path = "CHANGELOG.md", format = ["sdist"] },
+  { path = "src/lease_lurker/static", format = ["sdist", "wheel"] },
+  { path = "src/lease_lurker/templates", format = ["sdist", "wheel"] },
+  { path = "src/lease_lurker/translations", format = ["sdist", "wheel"] },
+  { path = "src/lease_lurker/data", format = ["sdist", "wheel"] },
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers --cov=lease_lurker --cov-report=term-missing"
+asyncio_mode = "auto"
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+packages = ["lease_lurker"]
+
+[[tool.mypy.overrides]]
+module = "yaml"
+ignore_missing_imports = true
