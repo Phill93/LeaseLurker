@@ -39,7 +39,21 @@ async def test_parses_subnets_and_leases(now) -> None:
             [
                 {
                     "result": 0,
-                    "arguments": {"subnets": [{"id": 1, "subnet": "192.0.2.0/24"}]},
+                    "arguments": ["lease4-get-all", "subnet4-list", "config-get"],
+                }
+            ],
+            [
+                {
+                    "result": 0,
+                    "arguments": {
+                        "subnets": [
+                            {
+                                "id": 1,
+                                "subnet": "192.0.2.0/24",
+                                "shared-network-name": "Office",
+                            }
+                        ]
+                    },
                 }
             ],
             [
@@ -72,7 +86,7 @@ async def test_parses_subnets_and_leases(now) -> None:
     provider = KeaProvider(KeaSettings(url="http://kea.test/"), client)
     subnets = await provider.get_subnets()
     leases = await provider.get_leases([1])
-    assert subnets[0].name == "192.0.2.0/24"
+    assert subnets[0].name == "Office"
     assert leases[0].hostname == "pc.example"
     assert leases[0].mac_address == "00:11:22:33:44:55"
     assert await provider.get_leases([]) == []
@@ -93,6 +107,92 @@ async def test_capability_check_accepts_native_list_shape() -> None:
         client_for([{"result": 0, "arguments": ["lease4-get-all", "subnet4-list"]}]),
     )
     await provider.check_capabilities()
+
+
+async def test_config_get_fallback_parses_direct_and_shared_subnets() -> None:
+    responses = iter(
+        [
+            [
+                {
+                    "result": 0,
+                    "arguments": ["lease4-get-all", "config-get"],
+                }
+            ],
+            [
+                {
+                    "result": 0,
+                    "arguments": {
+                        "Dhcp4": {
+                            "subnet4": [{"id": 2, "subnet": "198.51.100.0/24"}],
+                            "shared-networks": [
+                                {
+                                    "name": "Campus",
+                                    "subnet4": [{"id": 1, "subnet": "192.0.2.0/24"}],
+                                }
+                            ],
+                        }
+                    },
+                }
+            ],
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=next(responses), request=request)
+
+    client = httpx.AsyncClient(
+        base_url="http://kea.test/", transport=httpx.MockTransport(handler)
+    )
+    provider = KeaProvider(KeaSettings(url="http://kea.test/"), client)
+    subnets = await provider.get_subnets()
+    assert [(item.id, item.prefix, item.name) for item in subnets] == [
+        (2, "198.51.100.0/24", "198.51.100.0/24"),
+        (1, "192.0.2.0/24", "Campus"),
+    ]
+
+
+async def test_capability_check_requires_a_subnet_source() -> None:
+    provider = KeaProvider(
+        KeaSettings(url="http://kea.test/"),
+        client_for([{"result": 0, "arguments": ["lease4-get-all"]}]),
+    )
+    with pytest.raises(KeaError, match="subnet4-list or config-get"):
+        await provider.check_capabilities()
+
+
+@pytest.mark.parametrize(
+    "dhcp4",
+    [
+        {"subnet4": "invalid"},
+        {"shared-networks": "invalid"},
+        {"shared-networks": [{"name": "", "subnet4": []}]},
+        {"subnet4": [{"id": 1, "subnet": "192.0.2.0/24"}] * 2},
+    ],
+)
+async def test_config_get_rejects_invalid_subnets(dhcp4: object) -> None:
+    responses = iter(
+        [
+            [
+                {
+                    "result": 0,
+                    "arguments": ["lease4-get-all", "config-get"],
+                }
+            ],
+            [{"result": 0, "arguments": {"Dhcp4": dhcp4}}],
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=next(responses), request=request)
+
+    provider = KeaProvider(
+        KeaSettings(url="http://kea.test/"),
+        httpx.AsyncClient(
+            base_url="http://kea.test/", transport=httpx.MockTransport(handler)
+        ),
+    )
+    with pytest.raises(KeaError):
+        await provider.get_subnets()
 
 
 @pytest.mark.parametrize(

@@ -26,7 +26,9 @@ def test_mock_filters_leases_by_subnet() -> None:
 
 
 def test_mock_returns_subnets_status_and_errors() -> None:
-    assert command_response({"command": "subnet4-list"})[0]["result"] == 0
+    config = command_response({"command": "config-get"})[0]
+    assert config["result"] == 0
+    assert config["arguments"]["Dhcp4"]["shared-networks"][0]["name"] == ("Development")
     assert command_response({"command": "status-get"})[0]["result"] == 0
     assert command_response({"command": "unknown"})[0]["result"] == 1
     assert command_response([])[0]["result"] == 1

@@ -6,11 +6,15 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-08
+
 ### Behoben
 
 - Docker Compose reicht die Basic-Auth-Zugangsdaten für den Kea Control Agent an
   den LeaseLurker-Container weiter.
 - Der lokale Kea-Mock prüft nun ebenfalls HTTP Basic Authentication.
+- Kea 2.4 kann Subnetze ohne den nicht verfügbaren `subnet_cmds`-Hook über den
+  eingebauten `config-get`-Fallback liefern.
 
 ## [0.1.1] - 2026-09-07
 
@@ -38,6 +42,7 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Non-Root-Container, Compose-Konfiguration und lokaler Kea-Entwicklungsmock.
 - GitHub-CI für Formatierung, Linting, Typprüfung, Tests, Security und Image-Build.
 
-[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/Phill93/LeaseLurker/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Phill93/LeaseLurker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Phill93/LeaseLurker/releases/tag/v0.1.0

@@ -14,7 +14,7 @@ from typing import Any
 
 HOST = "0.0.0.0"
 PORT = 8000
-COMMANDS = ["lease4-get-all", "list-commands", "status-get", "subnet4-list"]
+COMMANDS = ["config-get", "lease4-get-all", "list-commands", "status-get"]
 
 
 def command_response(payload: object, now: int | None = None) -> list[dict[str, Any]]:
@@ -33,25 +33,22 @@ def command_response(payload: object, now: int | None = None) -> list[dict[str, 
                 "text": "Kea DHCPv4 server status returned.",
             }
         ]
-    if command == "subnet4-list":
+    if command == "config-get":
         return [
             {
                 "result": 0,
                 "arguments": {
-                    "subnets": [
-                        {
-                            "id": 1,
-                            "subnet": "192.0.2.0/24",
-                            "shared-network": "Development",
-                        },
-                        {
-                            "id": 2,
-                            "subnet": "198.51.100.0/24",
-                            "shared-network": "Hidden lab",
-                        },
-                    ]
+                    "Dhcp4": {
+                        "shared-networks": [
+                            {
+                                "name": "Development",
+                                "subnet4": [{"id": 1, "subnet": "192.0.2.0/24"}],
+                            }
+                        ],
+                        "subnet4": [{"id": 2, "subnet": "198.51.100.0/24"}],
+                    }
                 },
-                "text": "2 IPv4 subnets found.",
+                "text": "Configuration successful.",
             }
         ]
     if command == "lease4-get-all":

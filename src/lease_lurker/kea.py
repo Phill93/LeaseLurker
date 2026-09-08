@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -9,6 +10,8 @@ import httpx
 
 from lease_lurker.models import Lease, Subnet
 from lease_lurker.settings import KeaSettings
+
+LOGGER = logging.getLogger(__name__)
 
 
 class KeaError(RuntimeError):
@@ -18,8 +21,16 @@ class KeaError(RuntimeError):
 class KeaProvider:
     """Kea adapter whose command allowlist contains only read operations."""
 
-    REQUIRED_COMMANDS = frozenset({"lease4-get-all", "subnet4-list"})
-    ALLOWED_COMMANDS = REQUIRED_COMMANDS | {"list-commands", "status-get"}
+    REQUIRED_COMMANDS = frozenset({"lease4-get-all"})
+    SUBNET_COMMANDS = ("subnet4-list", "config-get")
+    ALLOWED_COMMANDS = (
+        REQUIRED_COMMANDS
+        | set(SUBNET_COMMANDS)
+        | {
+            "list-commands",
+            "status-get",
+        }
+    )
 
     def __init__(
         self, settings: KeaSettings, client: httpx.AsyncClient | None = None
@@ -28,6 +39,7 @@ class KeaProvider:
         if settings.username and settings.password:
             auth = (settings.username, settings.password.get_secret_value())
         self._owns_client = client is None
+        self._subnet_command: str | None = None
         self._client = client or httpx.AsyncClient(
             base_url=str(settings.url),
             auth=auth,
@@ -74,25 +86,93 @@ class KeaProvider:
             raise KeaError(
                 f"Kea is missing required commands: {', '.join(sorted(missing))}"
             )
+        self._subnet_command = next(
+            (command for command in self.SUBNET_COMMANDS if command in available),
+            None,
+        )
+        if self._subnet_command is None:
+            raise KeaError(
+                "Kea is missing a subnet read command: subnet4-list or config-get"
+            )
+        LOGGER.info("Using Kea subnet source %s", self._subnet_command)
 
     async def get_subnets(self) -> list[Subnet]:
+        if self._subnet_command is None:
+            await self.check_capabilities()
+        if self._subnet_command == "config-get":
+            return await self._get_subnets_from_config()
+
         result = await self._command("subnet4-list")
         arguments = result.get("arguments", {})
         items = arguments.get("subnets", []) if isinstance(arguments, dict) else []
+        return self._parse_subnets(items)
+
+    async def _get_subnets_from_config(self) -> list[Subnet]:
+        result = await self._command("config-get")
+        arguments = result.get("arguments")
+        if not isinstance(arguments, dict):
+            raise KeaError("Kea configuration response is invalid")
+        dhcp4 = arguments.get("Dhcp4")
+        if not isinstance(dhcp4, dict):
+            raise KeaError("Kea configuration has no valid Dhcp4 section")
+
+        items: list[object] = []
+        direct_subnets = dhcp4.get("subnet4", [])
+        if not isinstance(direct_subnets, list):
+            raise KeaError("Kea Dhcp4 subnet4 configuration is invalid")
+        items.extend(direct_subnets)
+
+        shared_networks = dhcp4.get("shared-networks", [])
+        if not isinstance(shared_networks, list):
+            raise KeaError("Kea Dhcp4 shared-networks configuration is invalid")
+        for network in shared_networks:
+            if not isinstance(network, dict):
+                raise KeaError("Kea shared network entry is invalid")
+            name = network.get("name")
+            network_subnets = network.get("subnet4", [])
+            if not isinstance(name, str) or not name.strip():
+                raise KeaError("Kea shared network name is invalid")
+            if not isinstance(network_subnets, list):
+                raise KeaError("Kea shared network subnet4 configuration is invalid")
+            for subnet in network_subnets:
+                if not isinstance(subnet, dict):
+                    raise KeaError("Kea subnet entry is invalid")
+                items.append({**subnet, "shared-network-name": name})
+
+        return self._parse_subnets(items)
+
+    @staticmethod
+    def _parse_subnets(items: object) -> list[Subnet]:
         if not isinstance(items, list):
             raise KeaError("Kea subnet list is invalid")
         subnets: list[Subnet] = []
+        seen_ids: set[int] = set()
         for item in items:
             if not isinstance(item, dict):
                 raise KeaError("Kea subnet entry is invalid")
-            subnet_id = int(item["id"])
-            prefix = str(item["subnet"])
-            shared_network = str(item.get("shared-network", "")).strip()
+            try:
+                subnet_id = item["id"]
+                prefix = item["subnet"]
+            except KeyError as exc:
+                raise KeaError("Kea subnet entry is invalid") from exc
+            if (
+                isinstance(subnet_id, bool)
+                or not isinstance(subnet_id, int)
+                or subnet_id <= 0
+                or not isinstance(prefix, str)
+                or not prefix.strip()
+                or subnet_id in seen_ids
+            ):
+                raise KeaError("Kea subnet entry has an invalid or duplicate ID")
+            seen_ids.add(subnet_id)
+            shared_network = str(
+                item.get("shared-network-name", item.get("shared-network", ""))
+            ).strip()
             subnets.append(
                 Subnet(
                     id=subnet_id,
-                    prefix=prefix,
-                    name=shared_network or prefix,
+                    prefix=prefix.strip(),
+                    name=shared_network or prefix.strip(),
                 )
             )
         return subnets

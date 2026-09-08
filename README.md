@@ -13,12 +13,14 @@ Listenansicht gruppiert freigegebene Leases nach Subnetz.
 
 - Python 3.14 für lokale Entwicklung
 - Poetry 2.4 oder neuer
-- Kea Control Agent mit aktivierten Hooks `lease_cmds` und `subnet_cmds`
+- Kea Control Agent mit aktiviertem Hook `lease_cmds`
 - Docker mit Compose für den vorgesehenen Produktivbetrieb
 
-Kea muss die Befehle `lease4-get-all` und `subnet4-list` über den Dienst
-`dhcp4` bereitstellen. LeaseLurker besitzt bewusst keine schreibenden
-Kea-Kommandos.
+Kea muss `lease4-get-all` über den Dienst `dhcp4` bereitstellen. Für Subnetze
+verwendet LeaseLurker bevorzugt `subnet4-list` aus dem optionalen Hook
+`subnet_cmds`. Fehlt dieser beispielsweise bei Kea 2.4 unter Ubuntu 24.04, wird
+automatisch das eingebaute read-only Kommando `config-get` verwendet.
+LeaseLurker besitzt bewusst keine schreibenden Kea-Kommandos.
 
 ## Lokale Installation
 
@@ -43,7 +45,7 @@ docker compose -f compose.yaml -f compose.build.yaml -f compose.mock.yaml up --b
 LeaseLurker verwendet dabei automatisch `http://mock-kea:8000/`. Subnetz 1 ist
 sichtbar und enthält zwei aktive Beispielleases; Subnetz 2 bleibt entsprechend der
 Beispielkonfiguration verborgen. Der Mock implementiert ausschließlich
-`list-commands`, `status-get`, `subnet4-list` und `lease4-get-all` und ist nicht für
+`list-commands`, `status-get`, `config-get` und `lease4-get-all` und ist nicht für
 Produktivbetrieb vorgesehen. Die Compose-Entwicklungskonfiguration aktiviert für
 Mock und Anwendung passende Basic-Auth-Testzugangsdaten.
 
@@ -75,6 +77,10 @@ LEASELURKER_KEA_PASSWORD=replace-with-a-long-random-password
 Compose reicht beide Werte an den Container weiter. Der Kea Control Agent muss
 denselben Benutzer per HTTP Basic Authentication kennen. Das Passwort darf nicht
 in `compose.yaml`, `config.yaml` oder ein Container-Image eingetragen werden.
+
+Der `config-get`-Fallback verarbeitet aus der Antwort ausschließlich Subnetz-ID,
+Präfix und Shared-Network-Name. Die vollständige Kea-Konfiguration wird weder
+gespeichert noch protokolliert oder an das Webinterface weitergegeben.
 
 ## Qualität und Tests
 
