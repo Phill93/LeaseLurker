@@ -2,6 +2,9 @@ services:
   mock-kea:
     image: python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
     command: ["python", "/app/mock_kea.py"]
+    environment:
+      MOCK_KEA_USERNAME: mock-user
+      MOCK_KEA_PASSWORD: mock-password
     volumes:
       - ./dev/mock_kea.py:/app/mock_kea.py:ro
     read_only: true
@@ -20,6 +23,8 @@ services:
   lease-lurker:
     environment:
       LEASELURKER_KEA_URL: http://mock-kea:8000/
+      LEASELURKER_KEA_USERNAME: mock-user
+      LEASELURKER_KEA_PASSWORD: mock-password
     depends_on:
       mock-kea:
         condition: service_healthy

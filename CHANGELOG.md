@@ -6,6 +6,12 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Behoben
+
+- Docker Compose reicht die Basic-Auth-Zugangsdaten für den Kea Control Agent an
+  den LeaseLurker-Container weiter.
+- Der lokale Kea-Mock prüft nun ebenfalls HTTP Basic Authentication.
+
 ## [0.1.1] - 2026-09-07
 
 ### Hinzugefügt

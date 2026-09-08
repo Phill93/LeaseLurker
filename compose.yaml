@@ -9,6 +9,8 @@ services:
     environment:
       LEASELURKER_CONFIG: /etc/lease-lurker/config.yaml
       LEASELURKER_KEA_URL: http://host.docker.internal:8000/
+      LEASELURKER_KEA_USERNAME:
+      LEASELURKER_KEA_PASSWORD:
     volumes:
       - ./config.yaml:/etc/lease-lurker/config.yaml:ro
     read_only: true

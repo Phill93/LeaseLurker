@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
+import base64
 import json
+import os
+import secrets
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -104,6 +107,12 @@ class KeaMockHandler(BaseHTTPRequestHandler):
         self._send_json({"status": "ok"})
 
     def do_POST(self) -> None:  # noqa: N802
+        if not self._is_authorized():
+            self.send_response(HTTPStatus.UNAUTHORIZED)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("WWW-Authenticate", 'Basic realm="Kea Control Agent"')
+            self.end_headers()
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length))
@@ -114,6 +123,19 @@ class KeaMockHandler(BaseHTTPRequestHandler):
             )
             return
         self._send_json(command_response(payload))
+
+    def _is_authorized(self) -> bool:
+        username = os.environ.get("MOCK_KEA_USERNAME")
+        password = os.environ.get("MOCK_KEA_PASSWORD")
+        if username is None and password is None:
+            return True
+        if username is None or password is None:
+            return False
+        expected = (
+            "Basic " + base64.b64encode(f"{username}:{password}".encode()).decode()
+        )
+        authorization = self.headers.get("Authorization", "")
+        return secrets.compare_digest(authorization, expected)
 
     def _send_json(self, payload: object, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(payload).encode("utf-8")

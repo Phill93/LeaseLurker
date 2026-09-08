@@ -44,7 +44,8 @@ LeaseLurker verwendet dabei automatisch `http://mock-kea:8000/`. Subnetz 1 ist
 sichtbar und enthält zwei aktive Beispielleases; Subnetz 2 bleibt entsprechend der
 Beispielkonfiguration verborgen. Der Mock implementiert ausschließlich
 `list-commands`, `status-get`, `subnet4-list` und `lease4-get-all` und ist nicht für
-Produktivbetrieb vorgesehen.
+Produktivbetrieb vorgesehen. Die Compose-Entwicklungskonfiguration aktiviert für
+Mock und Anwendung passende Basic-Auth-Testzugangsdaten.
 
 ## Konfiguration
 
@@ -63,7 +64,17 @@ Deploymentwerte werden bevorzugt per Umgebung gesetzt:
 | `LEASELURKER_LOG_LEVEL` | Python-Log-Level, standardmäßig `INFO` |
 
 Zugangsdaten gehören nicht in die YAML-Beispieldatei oder das Image. Benutzername
-und Passwort müssen immer gemeinsam gesetzt werden.
+und Passwort müssen immer gemeinsam gesetzt werden. Bei Docker Compose können sie
+über die von Git ignorierte Datei `.env` bereitgestellt werden:
+
+```dotenv
+LEASELURKER_KEA_USERNAME=lease-lurker
+LEASELURKER_KEA_PASSWORD=replace-with-a-long-random-password
+```
+
+Compose reicht beide Werte an den Container weiter. Der Kea Control Agent muss
+denselben Benutzer per HTTP Basic Authentication kennen. Das Passwort darf nicht
+in `compose.yaml`, `config.yaml` oder ein Container-Image eingetragen werden.
 
 ## Qualität und Tests
 
