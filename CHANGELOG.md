@@ -6,6 +6,16 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-08
+
+### Behoben
+
+- Das produktive Docker-Compose-Deployment verwendet unter Linux das
+  Host-Netzwerk und erreicht dadurch einen ausschließlich an
+  `127.0.0.1:8000` gebundenen Kea Control Agent.
+- Der Kea-Entwicklungsmock setzt das Host-Netzwerk wieder zurück und bleibt in
+  einem isolierten Docker-Bridge-Netz erreichbar.
+
 ## [0.1.2] - 2026-09-08
 
 ### Behoben
@@ -42,7 +52,8 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Non-Root-Container, Compose-Konfiguration und lokaler Kea-Entwicklungsmock.
 - GitHub-CI für Formatierung, Linting, Typprüfung, Tests, Security und Image-Build.
 
-[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/Phill93/LeaseLurker/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/Phill93/LeaseLurker/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Phill93/LeaseLurker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Phill93/LeaseLurker/releases/tag/v0.1.0

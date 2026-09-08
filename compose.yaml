@@ -2,13 +2,10 @@ services:
   lease-lurker:
     image: ghcr.io/phill93/leaselurker:latest
     restart: unless-stopped
-    ports:
-      - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    network_mode: host
     environment:
       LEASELURKER_CONFIG: /etc/lease-lurker/config.yaml
-      LEASELURKER_KEA_URL: http://host.docker.internal:8000/
+      LEASELURKER_KEA_URL: http://127.0.0.1:8000/
       LEASELURKER_KEA_USERNAME:
       LEASELURKER_KEA_PASSWORD:
     volumes:

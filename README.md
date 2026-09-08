@@ -114,8 +114,16 @@ docker compose up -d
 ```
 
 Kea läuft als Dienst auf dem Docker-Host. Compose bildet dafür
-`host.docker.internal` auf `host-gateway` ab. Der Container läuft ohne Root-Rechte,
-ohne Linux-Capabilities und mit schreibgeschütztem Dateisystem.
+unter Linux das Host-Netzwerk in den Container ein. Dadurch erreicht LeaseLurker
+den ausschließlich an `127.0.0.1:8000` gebundenen Kea Control Agent, ohne diesen
+auf einer externen Schnittstelle freigeben zu müssen. Eine `ports:`-Freigabe ist
+im Host-Netzwerk nicht erforderlich; LeaseLurker ist direkt auf Port 8080 des
+Hosts erreichbar. Der Container läuft ohne Root-Rechte, ohne Linux-Capabilities
+und mit schreibgeschütztem Dateisystem.
+
+Das produktive `compose.yaml` ist damit für Docker Engine unter Linux ausgelegt.
+Der Mock-Override setzt das Host-Netzwerk zurück und verwendet für die lokalen
+Container wieder ein isoliertes Bridge-Netzwerk.
 
 Das öffentliche Multi-Arch-Image für AMD64 und ARM64 liegt unter
 `ghcr.io/phill93/leaselurker`. Stabile Releases erhalten vollständige SemVer-,

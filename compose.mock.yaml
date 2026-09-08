@@ -21,6 +21,9 @@ services:
       - ALL
 
   lease-lurker:
+    network_mode: !reset null
+    ports:
+      - "8080:8080"
     environment:
       LEASELURKER_KEA_URL: http://mock-kea:8000/
       LEASELURKER_KEA_USERNAME: mock-user
