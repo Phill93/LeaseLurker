@@ -190,6 +190,9 @@ class KeaProvider:
             for item in items:
                 if not isinstance(item, dict):
                     raise TypeError
+                state = int(item.get("state", 0))
+                if state != 0:
+                    continue
                 leases.append(
                     Lease(
                         ip_address=str(item["ip-address"]),
@@ -198,7 +201,7 @@ class KeaProvider:
                         subnet_id=int(item["subnet-id"]),
                         starts_at=datetime.fromtimestamp(int(item["cltt"]), UTC),
                         valid_lifetime=timedelta(seconds=int(item["valid-lft"])),
-                        state=int(item.get("state", 0)),
+                        state=state,
                     )
                 )
         except (KeyError, TypeError, ValueError, OSError) as exc:

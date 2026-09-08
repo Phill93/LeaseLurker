@@ -62,6 +62,15 @@ async def test_parses_subnets_and_leases(now) -> None:
                     "arguments": {
                         "leases": [
                             {
+                                "ip-address": "192.0.2.41",
+                                "hostname": "",
+                                "hw-address": "",
+                                "subnet-id": 1,
+                                "cltt": int(now.timestamp()),
+                                "valid-lft": 3600,
+                                "state": 1,
+                            },
+                            {
                                 "ip-address": "192.0.2.42",
                                 "hostname": "pc.example.",
                                 "hw-address": "00-11-22-33-44-55",
@@ -69,7 +78,7 @@ async def test_parses_subnets_and_leases(now) -> None:
                                 "cltt": int(now.timestamp()),
                                 "valid-lft": 3600,
                                 "state": 0,
-                            }
+                            },
                         ]
                     },
                 }
@@ -86,6 +95,7 @@ async def test_parses_subnets_and_leases(now) -> None:
     provider = KeaProvider(KeaSettings(url="http://kea.test/"), client)
     subnets = await provider.get_subnets()
     leases = await provider.get_leases([1])
+    assert len(leases) == 1
     assert subnets[0].name == "Office"
     assert leases[0].hostname == "pc.example"
     assert leases[0].mac_address == "00:11:22:33:44:55"
