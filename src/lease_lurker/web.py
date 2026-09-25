@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from lease_lurker import __version__
+from lease_lurker.api import router as api_router
 from lease_lurker.i18n import select_locale, translator
 from lease_lurker.kea import KeaProvider
 from lease_lurker.providers import CompositeDeviceNameResolver
@@ -77,13 +78,14 @@ def create_app(
     app = FastAPI(
         title="LeaseLurker",
         version=__version__,
-        docs_url=None,
+        docs_url="/api/docs",
         redoc_url=None,
-        openapi_url=None,
+        openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
     app.state.settings = configured
     app.state.lease_service = lease_service
+    app.include_router(api_router)
     templates = Jinja2Templates(directory=PACKAGE_DIR / "templates")
     templates.env.filters["remaining"] = _remaining
     app.mount("/static", StaticFiles(directory=PACKAGE_DIR / "static"), name="static")
@@ -110,11 +112,11 @@ def create_app(
             templates=templates,
         )
 
-    @app.get("/", response_class=HTMLResponse)
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def index(request: Request) -> HTMLResponse:
         return await render_leases(request, "", 1)
 
-    @app.get("/leases", response_class=HTMLResponse)
+    @app.get("/leases", response_class=HTMLResponse, include_in_schema=False)
     async def leases(
         request: Request,
         q: str = Query(default="", max_length=100),
@@ -146,7 +148,7 @@ def create_app(
             ),
         )
 
-    @app.post("/refresh")
+    @app.post("/refresh", include_in_schema=False)
     async def refresh(
         request: Request,
         q: str = Form(default=""),
@@ -183,7 +185,7 @@ def create_app(
         )
         return RedirectResponse(target, status_code=303)
 
-    @app.get("/locale/{locale}")
+    @app.get("/locale/{locale}", include_in_schema=False)
     async def locale(locale: str) -> RedirectResponse:
         selected = locale if locale in {"de", "en"} else configured.web.default_locale
         response = RedirectResponse("/", status_code=303)

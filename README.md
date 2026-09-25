@@ -70,6 +70,7 @@ Deploymentwerte werden bevorzugt per Umgebung gesetzt:
 | `LEASELURKER_KEA_URL` | URL des Kea Control Agent |
 | `LEASELURKER_KEA_USERNAME` | Optionaler Basic-Auth-Benutzer |
 | `LEASELURKER_KEA_PASSWORD` | Optionales Basic-Auth-Passwort |
+| `LEASELURKER_API_TOKEN` | Bearer-Token für die optionale Abfrage-API |
 | `LEASELURKER_LOG_LEVEL` | Python-Log-Level, standardmäßig `INFO` |
 
 Zugangsdaten gehören nicht in die YAML-Beispieldatei oder das Image. Benutzername
@@ -79,11 +80,35 @@ und Passwort müssen immer gemeinsam gesetzt werden. Bei Docker Compose können 
 ```dotenv
 LEASELURKER_KEA_USERNAME=lease-lurker
 LEASELURKER_KEA_PASSWORD=replace-with-a-long-random-password
+LEASELURKER_API_TOKEN=replace-with-at-least-32-random-characters
 ```
 
-Compose reicht beide Werte an den Container weiter. Der Kea Control Agent muss
-denselben Benutzer per HTTP Basic Authentication kennen. Das Passwort darf nicht
-in `compose.yaml`, `config.yaml` oder ein Container-Image eingetragen werden.
+Compose reicht die Kea-Zugangsdaten und das API-Token an den Container weiter.
+Der Kea Control Agent muss denselben Benutzer per HTTP Basic Authentication
+kennen. Passwörter und Token dürfen nicht in `compose.yaml`, `config.yaml` oder
+ein Container-Image eingetragen werden.
+
+## Abfrage-API
+
+Die read-only JSON-API ist aktiv, sobald `LEASELURKER_API_TOKEN` mit mindestens
+32 Zeichen gesetzt ist. Ohne Token bleibt die Weboberfläche verfügbar, während
+API-Abfragen mit HTTP 503 abgewiesen werden. Die interaktive Dokumentation liegt
+unter `/api/docs`, das OpenAPI-Schema unter `/api/openapi.json`.
+
+`GET /api/v1/leases` unterstützt dieselbe Teiltreffersuche und dieselben Filter
+wie die Weboberfläche. Reguläres Paging verwendet `page` und `per_page` mit
+maximal 200 Einträgen; `per_page=all` liefert alle gefilterten Treffer.
+
+```bash
+curl --fail-with-body \
+  --header "Authorization: Bearer $LEASELURKER_API_TOKEN" \
+  "http://localhost:8080/api/v1/leases?q=iai-pc042&per_page=50"
+```
+
+Zusätzliche Filter sind `subnet`, `hostname`, `ip`, `mac`, `vendor`,
+`remaining_max_minutes` und `hostname_warning`. Bei einem vorübergehenden
+Kea-Ausfall wird ein noch zulässiger Cache mit `snapshot.stale: true`
+gekennzeichnet. Ohne verwendbaren Snapshot antwortet die API mit HTTP 503.
 
 Der `config-get`-Fallback verarbeitet aus der Antwort ausschließlich Subnetz-ID,
 Präfix und Shared-Network-Name. Die vollständige Kea-Konfiguration wird weder

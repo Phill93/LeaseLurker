@@ -6,6 +6,14 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-25
+
+### Hinzugefügt
+
+- Versionierte, per Bearer-Token geschützte JSON-API zur Suche und Auflistung
+  aktiver Leases einschließlich Filterung, Paging und Stale-Cache-Kennzeichnung.
+- OpenAPI-Schema und interaktive Swagger-Dokumentation.
+
 ## [0.3.1] - 2026-09-25
 
 ### Behoben
@@ -119,7 +127,8 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Non-Root-Container, Compose-Konfiguration und lokaler Kea-Entwicklungsmock.
 - GitHub-CI für Formatierung, Linting, Typprüfung, Tests, Security und Image-Build.
 
-[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Phill93/LeaseLurker/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Phill93/LeaseLurker/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Phill93/LeaseLurker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Phill93/LeaseLurker/compare/v0.1.6...v0.2.0

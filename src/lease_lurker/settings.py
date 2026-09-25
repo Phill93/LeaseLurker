@@ -35,6 +35,10 @@ class CacheSettings(BaseModel):
         return self
 
 
+class ApiSettings(BaseModel):
+    token: Annotated[SecretStr, Field(min_length=32)] | None = None
+
+
 class SubnetRule(BaseModel):
     id: int = Field(gt=0)
     visible: bool = False
@@ -72,6 +76,7 @@ class WebSettings(BaseModel):
 
 class Settings(BaseModel):
     kea: KeaSettings = Field(default_factory=KeaSettings)
+    api: ApiSettings = Field(default_factory=ApiSettings)
     cache: CacheSettings = Field(default_factory=CacheSettings)
     subnets: list[SubnetRule] = Field(default_factory=list)
     web: WebSettings = Field(default_factory=WebSettings)
@@ -117,6 +122,11 @@ def load_settings(path: Path | None = None) -> Settings:
     for key, value in overrides.items():
         if value is not None:
             kea[key] = value
+    api = raw.setdefault("api", {})
+    if not isinstance(api, dict):
+        raise ValueError("api configuration must be a mapping")
+    if api_token := os.environ.get("LEASELURKER_API_TOKEN"):
+        api["token"] = api_token
     if log_level := os.environ.get("LEASELURKER_LOG_LEVEL"):
         raw["log_level"] = log_level
     return Settings.model_validate(raw)

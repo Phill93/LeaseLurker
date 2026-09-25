@@ -17,11 +17,14 @@ def test_loads_yaml_and_environment_override(
         encoding="utf-8",
     )
     monkeypatch.setenv("LEASELURKER_KEA_URL", "http://from-env:9000/")
+    monkeypatch.setenv("LEASELURKER_API_TOKEN", "a" * 32)
     monkeypatch.setenv("LEASELURKER_LOG_LEVEL", "debug")
     loaded = load_settings(config)
     assert str(loaded.kea.url) == "http://from-env:9000/"
     assert loaded.visible_subnet_ids == [7]
     assert loaded.log_level == "debug"
+    assert loaded.api.token is not None
+    assert loaded.api.token.get_secret_value() == "a" * 32
 
 
 def test_missing_config_uses_safe_defaults(tmp_path: Path) -> None:
@@ -62,6 +65,7 @@ def test_page_size_default_is_added_to_allowed_options() -> None:
         {"web": {"page_size_options": [25, 25]}},
         {"web": {"page_size_options": [5, None]}},
         {"web": {"hostname_regex": "("}},
+        {"api": {"token": "too-short"}},
     ],
 )
 def test_rejects_invalid_settings(raw: dict[str, object]) -> None:

@@ -8,6 +8,7 @@ services:
       LEASELURKER_KEA_URL: http://127.0.0.1:8000/
       LEASELURKER_KEA_USERNAME:
       LEASELURKER_KEA_PASSWORD:
+      LEASELURKER_API_TOKEN:
     volumes:
       - ./config.yaml:/etc/lease-lurker/config.yaml:ro
     read_only: true
