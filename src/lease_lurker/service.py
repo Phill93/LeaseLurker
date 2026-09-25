@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -36,6 +37,16 @@ class SearchPage:
     total: int
 
 
+@dataclass(frozen=True, slots=True)
+class LeaseFilters:
+    hostname: str = ""
+    ip: str = ""
+    mac: str = ""
+    vendor: str = ""
+    remaining_max_minutes: int | None = None
+    hostname_warning: bool = False
+
+
 class LeaseService:
     def __init__(
         self,
@@ -53,6 +64,11 @@ class LeaseService:
         self._snapshot: LeaseSnapshot | None = None
         self._refresh_lock = asyncio.Lock()
         self._capabilities_ok = False
+        self._hostname_pattern = (
+            re.compile(settings.web.hostname_regex, re.IGNORECASE)
+            if settings.web.hostname_regex
+            else None
+        )
 
     async def initialize(self) -> None:
         await self._provider.check_capabilities()
@@ -138,6 +154,11 @@ class LeaseService:
                         if lease.mac_address
                         else None
                     ),
+                    hostname_valid=(
+                        self._hostname_pattern.fullmatch(lease.hostname) is not None
+                        if self._hostname_pattern is not None
+                        else None
+                    ),
                 )
             )
         views.sort(
@@ -156,13 +177,59 @@ class LeaseService:
         query: str,
         page: int,
         subnet_id: int | None = None,
+        *,
+        filters: LeaseFilters | None = None,
+        page_size: int | None = -1,
+        now: datetime | None = None,
     ) -> SearchPage:
         cleaned = query.strip().casefold()
         mac_fragment = "".join(char for char in cleaned if char in "0123456789abcdef")
+        selected_filters = filters or LeaseFilters()
+        hostname_filter = selected_filters.hostname.strip().casefold()
+        ip_filter = selected_filters.ip.strip().casefold()
+        raw_mac_filter = selected_filters.mac.strip().casefold()
+        filter_mac = "".join(
+            char for char in raw_mac_filter if char in "0123456789abcdef"
+        )
+        vendor_filter = selected_filters.vendor.strip().casefold()
+        current = now or self._clock()
+
+        def matches_filters(view: LeaseView) -> bool:
+            if (
+                hostname_filter
+                and hostname_filter not in view.lease.hostname.casefold()
+            ):
+                return False
+            if ip_filter and ip_filter not in view.lease.ip_address.casefold():
+                return False
+            if raw_mac_filter:
+                if not filter_mac:
+                    return False
+                if view.lease.mac_address is None:
+                    return False
+                if filter_mac not in view.lease.mac_address.replace(":", ""):
+                    return False
+            if vendor_filter:
+                if vendor_filter == "~unknown":
+                    if view.vendor is not None:
+                        return False
+                elif view.vendor is None or view.vendor.casefold() != vendor_filter:
+                    return False
+            if selected_filters.remaining_max_minutes is not None:
+                remaining = view.lease.expires_at - current
+                if remaining >= timedelta(
+                    minutes=selected_filters.remaining_max_minutes
+                ):
+                    return False
+            return not (
+                selected_filters.hostname_warning and view.hostname_valid is not False
+            )
+
         matches = tuple(
             view
             for view in snapshot.leases
             if (subnet_id is None or view.subnet.id == subnet_id)
+            and matches_filters(view)
             and (
                 not cleaned
                 or (len(cleaned) >= 2 and cleaned in view.lease.hostname.casefold())
@@ -174,12 +241,21 @@ class LeaseService:
                 )
             )
         )
-        page_size = self._settings.web.page_size
-        pages = max(1, ceil(len(matches) / page_size))
+        effective_page_size = (
+            self._settings.web.page_size if page_size == -1 else page_size
+        )
+        if effective_page_size is None:
+            return SearchPage(
+                items=matches,
+                page=1,
+                pages=1,
+                total=len(matches),
+            )
+        pages = max(1, ceil(len(matches) / effective_page_size))
         selected_page = min(max(page, 1), pages)
-        start = (selected_page - 1) * page_size
+        start = (selected_page - 1) * effective_page_size
         return SearchPage(
-            items=matches[start : start + page_size],
+            items=matches[start : start + effective_page_size],
             page=selected_page,
             pages=pages,
             total=len(matches),

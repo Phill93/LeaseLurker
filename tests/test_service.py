@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 
-from lease_lurker.service import LeaseService, SnapshotUnavailableError
+from lease_lurker.service import LeaseFilters, LeaseService, SnapshotUnavailableError
 from lease_lurker.vendor import VendorLookup
 
 from .conftest import FakeProvider, NoNames, make_lease
@@ -87,6 +87,98 @@ async def test_searches_ip_fragments_and_filters_by_subnet(settings, now) -> Non
     assert service.search(snapshot, "", 1, subnet_id=1).total == 1
     assert service.search(snapshot, "", 1, subnet_id=3).total == 1
     assert service.search(snapshot, "1", 1).total == 0
+
+
+async def test_column_filters_and_unpaginated_results(settings, now) -> None:
+    provider = FakeProvider(
+        [
+            make_lease(now, hostname="iai-pc001", ip="192.0.2.10", lifetime=1200),
+            make_lease(
+                now,
+                hostname="other-client",
+                ip="192.0.2.20",
+                mac=None,
+                lifetime=7200,
+            ),
+        ]
+    )
+    service = LeaseService(
+        provider,
+        settings,
+        VendorLookup({6: {"001122": "Example Vendor"}}),
+        NoNames(),
+        clock=lambda: now,
+    )
+    snapshot = (await service.snapshot()).snapshot
+
+    assert (
+        service.search(
+            snapshot,
+            "",
+            1,
+            filters=LeaseFilters(hostname="PC00", ip=".2.1", mac="11-22"),
+            page_size=None,
+            now=now,
+        ).total
+        == 1
+    )
+    assert (
+        service.search(
+            snapshot,
+            "",
+            1,
+            filters=LeaseFilters(vendor="example vendor"),
+            now=now,
+        ).total
+        == 1
+    )
+    assert (
+        service.search(
+            snapshot,
+            "",
+            1,
+            filters=LeaseFilters(vendor="~unknown"),
+            now=now,
+        ).total
+        == 1
+    )
+    assert (
+        service.search(
+            snapshot,
+            "",
+            1,
+            filters=LeaseFilters(remaining_max_minutes=30),
+            now=now,
+        ).total
+        == 1
+    )
+
+
+async def test_hostname_pattern_marks_only_non_matching_kea_names(
+    settings, now
+) -> None:
+    configured = settings.model_copy(deep=True)
+    configured.web.hostname_regex = r"(iai|elab)-([a-z]+\d{3}|[a-z\d]+)"
+    provider = FakeProvider(
+        [
+            make_lease(now, hostname="IAI-PC001"),
+            make_lease(
+                now,
+                hostname="external.example",
+                mac="00:11:22:33:44:66",
+            ),
+        ]
+    )
+    service = LeaseService(
+        provider, configured, VendorLookup({}), NoNames(), clock=lambda: now
+    )
+    snapshot = (await service.snapshot()).snapshot
+    assert [item.hostname_valid for item in snapshot.leases] == [True, False]
+    warnings = service.search(
+        snapshot, "", 1, filters=LeaseFilters(hostname_warning=True)
+    )
+    assert warnings.total == 1
+    assert warnings.items[0].lease.hostname == "external.example"
 
 
 async def test_stale_snapshot_is_served_then_expires(settings, now) -> None:

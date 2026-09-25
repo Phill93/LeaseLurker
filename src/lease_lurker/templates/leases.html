@@ -1,4 +1,35 @@
 {% extends "base.html" %}
+
+{% macro filter_fields() %}
+  {% if filters.hostname %}<input type="hidden" name="hostname" value="{{ filters.hostname }}">{% endif %}
+  {% if filters.ip %}<input type="hidden" name="ip" value="{{ filters.ip }}">{% endif %}
+  {% if filters.mac %}<input type="hidden" name="mac" value="{{ filters.mac }}">{% endif %}
+  {% if filters.vendor %}<input type="hidden" name="vendor" value="{{ filters.vendor }}">{% endif %}
+  {% if filters.remaining_max_minutes is not none %}<input type="hidden" name="remaining_max_minutes" value="{{ filters.remaining_max_minutes }}">{% endif %}
+  {% if filters.hostname_warning %}<input type="hidden" name="hostname_warning" value="true">{% endif %}
+{% endmacro %}
+
+{% macro navigation_fields(include_page_size=true) %}
+  {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+  {% if selected_subnet %}<input type="hidden" name="subnet" value="{{ selected_subnet }}">{% endif %}
+  {% if include_page_size %}<input type="hidden" name="per_page" value="{{ page_size_token }}">{% endif %}
+  {{ filter_fields() }}
+{% endmacro %}
+
+{% macro page_size_selector(location) %}
+  <form action="/leases" method="get" class="page-size-form page-size-form-{{ location }}">
+    {{ navigation_fields(false) }}
+    <label for="per-page-{{ location }}">{{ t("per_page") }}</label>
+    <select id="per-page-{{ location }}" name="per_page">
+      {% for option in page_size_options %}
+        {% set option_token = "all" if option is none else option|string %}
+        <option value="{{ option_token }}"{% if option_token == page_size_token %} selected{% endif %}>{{ t("all") if option is none else option }}</option>
+      {% endfor %}
+    </select>
+    <button class="secondary compact" type="submit">{{ t("apply") }}</button>
+  </form>
+{% endmacro %}
+
 {% block content %}
   <section class="hero">
     <p class="eyebrow">DHCP LEASE DISCOVERY</p>
@@ -6,6 +37,8 @@
     <form action="/leases" method="get" class="search-form" role="search">
       <label class="sr-only" for="q">{{ t("search") }}</label>
       {% if selected_subnet %}<input type="hidden" name="subnet" value="{{ selected_subnet }}">{% endif %}
+      <input type="hidden" name="per_page" value="{{ page_size_token }}">
+      {{ filter_fields() }}
       <input id="q" name="q" value="{{ query }}" maxlength="100" autocomplete="off" placeholder="pc-042 · 172.22.218 · 00:1a:2b…">
       <button type="submit">{{ t("search") }}</button>
     </form>
@@ -18,65 +51,66 @@
   {% endif %}
 
   <nav class="subnet-tabs" aria-label="{{ t('subnet_navigation') }}">
-    <a href="{{ lease_url(query) }}"{% if selected_subnet is none %} aria-current="page"{% endif %}>{{ t("all_leases") }}</a>
+    <a href="{{ lease_url(query, none, 1, page_size_token, filters) }}"{% if selected_subnet is none %} aria-current="page"{% endif %}>{{ t("all_leases") }}</a>
     {% for subnet in subnets %}
-      <a href="{{ lease_url(query, subnet.id) }}"{% if selected_subnet == subnet.id %} aria-current="page"{% endif %}>{{ subnet.name }} <span>{{ subnet.prefix }}</span></a>
+      <a href="{{ lease_url(query, subnet.id, 1, page_size_token, filters) }}"{% if selected_subnet == subnet.id %} aria-current="page"{% endif %}>{{ subnet.name }} <span>{{ subnet.prefix }}</span></a>
     {% endfor %}
   </nav>
 
   <section class="result-header">
-    <div>
-      <p class="eyebrow">{{ t("results") }}</p>
-      <h2>{{ result.total }} {{ t("lease_singular") if result.total == 1 else t("lease_plural") }}</h2>
+    <div><p class="eyebrow">{{ t("results") }}</p><h2>{{ result.total }} {{ t("lease_singular") if result.total == 1 else t("lease_plural") }}</h2></div>
+    <div class="result-actions">
+      {% if filter_active %}<a class="button secondary" href="{{ reset_filters_url }}">{{ t("reset_all_filters") }}</a>{% endif %}
+      <form action="/refresh" method="post">{{ navigation_fields() }}<button class="secondary" type="submit">↻ {{ t("refresh") }}</button></form>
     </div>
-    <form action="/refresh" method="post">
-      <input type="hidden" name="q" value="{{ query }}">
-      {% if selected_subnet %}<input type="hidden" name="subnet" value="{{ selected_subnet }}">{% endif %}
-      <button class="secondary" type="submit">↻ {{ t("refresh") }}</button>
-    </form>
   </section>
 
-  {% if not result.items %}
-    <div class="empty">{{ t("no_results") }}</div>
-  {% endif %}
+  <div class="table-toolbar">{{ page_size_selector("top") }}</div>
+  {% if not result.items %}<div class="empty">{{ t("no_results") }}</div>{% endif %}
 
   {% if result.items %}
-    <section class="lease-results">
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>{{ t("hostname") }}</th>
-            <th>{{ t("ip_address") }}</th>
-            {% if selected_subnet is none %}<th>{{ t("subnet") }}</th>{% endif %}
-            <th>{{ t("mac_address") }}</th>
-            <th>{{ t("vendor") }}</th>
-            <th>{{ t("expires") }}</th>
-            <th>{{ t("remaining") }}</th>
-          </tr></thead>
-          <tbody>
-          {% for item in result.items %}
-            <tr>
-              <td><strong>{{ item.device_name or item.lease.hostname or t("empty") }}</strong></td>
-              <td><code>{{ item.lease.ip_address }}</code></td>
-              {% if selected_subnet is none %}<td>{{ item.subnet.name }} <small>{{ item.subnet.prefix }}</small></td>{% endif %}
-              <td><code>{{ item.lease.mac_address or t("empty") }}</code></td>
-              <td>{{ item.vendor or t("unknown") }}</td>
-              <td><time datetime="{{ item.lease.expires_at.isoformat() }}">{{ item.lease.expires_at.strftime("%Y-%m-%d %H:%M") }}</time></td>
-              <td>{{ item.lease.expires_at | remaining(now) }}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <form action="/leases" method="get" class="table-filter-form">
+      {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+      {% if selected_subnet %}<input type="hidden" name="subnet" value="{{ selected_subnet }}">{% endif %}
+      <input type="hidden" name="per_page" value="{{ page_size_token }}">
+      <section class="lease-results"><div class="table-wrap"><table>
+        <thead><tr>
+          <th><details class="column-filter{% if filters.hostname or filters.hostname_warning %} active{% endif %}"><summary>{{ t("hostname") }}</summary><div class="filter-menu">
+            <label>{{ t("contains") }}<input name="hostname" value="{{ filters.hostname }}" maxlength="100"></label>
+            <label class="checkbox"><input type="checkbox" name="hostname_warning" value="true"{% if filters.hostname_warning %} checked{% endif %}> {{ t("only_hostname_warnings") }}</label>
+            <div class="filter-actions"><button class="compact" type="submit">{{ t("apply") }}</button>{% if filters.hostname or filters.hostname_warning %}<a href="{{ clear_filter_urls.hostname_group }}">{{ t("reset") }}</a>{% endif %}</div>
+          </div></details></th>
+          <th><details class="column-filter{% if filters.ip %} active{% endif %}"><summary>{{ t("ip_address") }}</summary><div class="filter-menu">
+            <label>{{ t("contains") }}<input name="ip" value="{{ filters.ip }}" maxlength="45"></label><div class="filter-actions"><button class="compact" type="submit">{{ t("apply") }}</button>{% if filters.ip %}<a href="{{ clear_filter_urls.ip }}">{{ t("reset") }}</a>{% endif %}</div>
+          </div></details></th>
+          {% if selected_subnet is none %}<th>{{ t("subnet") }}</th>{% endif %}
+          <th><details class="column-filter{% if filters.mac %} active{% endif %}"><summary>{{ t("mac_address") }}</summary><div class="filter-menu">
+            <label>{{ t("contains") }}<input name="mac" value="{{ filters.mac }}" maxlength="50"></label><div class="filter-actions"><button class="compact" type="submit">{{ t("apply") }}</button>{% if filters.mac %}<a href="{{ clear_filter_urls.mac }}">{{ t("reset") }}</a>{% endif %}</div>
+          </div></details></th>
+          <th><details class="column-filter{% if filters.vendor %} active{% endif %}"><summary>{{ t("vendor") }}</summary><div class="filter-menu">
+            <label>{{ t("vendor") }}<select name="vendor"><option value="">{{ t("all") }}</option>{% for vendor in vendors %}<option value="{{ vendor }}"{% if filters.vendor == vendor %} selected{% endif %}>{{ vendor }}</option>{% endfor %}{% if has_unknown_vendor %}<option value="~unknown"{% if filters.vendor == "~unknown" %} selected{% endif %}>{{ t("unknown") }}</option>{% endif %}</select></label><div class="filter-actions"><button class="compact" type="submit">{{ t("apply") }}</button>{% if filters.vendor %}<a href="{{ clear_filter_urls.vendor }}">{{ t("reset") }}</a>{% endif %}</div>
+          </div></details></th>
+          <th>{{ t("expires") }}</th>
+          <th><details class="column-filter{% if filters.remaining_max_minutes is not none %} active{% endif %}"><summary>{{ t("remaining") }}</summary><div class="filter-menu">
+            <label>{{ t("less_than_minutes") }}<input type="number" name="remaining_max_minutes" value="{{ filters.remaining_max_minutes or '' }}" min="1"></label><div class="filter-actions"><button class="compact" type="submit">{{ t("apply") }}</button>{% if filters.remaining_max_minutes is not none %}<a href="{{ clear_filter_urls.remaining_max_minutes }}">{{ t("reset") }}</a>{% endif %}</div>
+          </div></details></th>
+        </tr></thead>
+        <tbody>{% for item in result.items %}<tr{% if item.hostname_valid is false %} class="hostname-warning-row"{% endif %}>
+          <td><strong>{{ item.device_name or item.lease.hostname or t("empty") }}</strong>{% if item.hostname_valid is false %} <span class="hostname-warning" role="img" aria-label="{{ t('hostname_warning') }}" title="{{ t('hostname_warning') }}">⚠</span>{% endif %}</td>
+          <td><code>{{ item.lease.ip_address }}</code></td>
+          {% if selected_subnet is none %}<td>{{ item.subnet.name }} <small>{{ item.subnet.prefix }}</small></td>{% endif %}
+          <td><code>{{ item.lease.mac_address or t("empty") }}</code></td><td>{{ item.vendor or t("unknown") }}</td>
+          <td><time datetime="{{ item.lease.expires_at.isoformat() }}">{{ item.lease.expires_at.strftime("%Y-%m-%d %H:%M") }}</time></td><td>{{ item.lease.expires_at | remaining(now) }}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div></section>
+    </form>
   {% endif %}
 
-  {% if result.pages > 1 %}
-    <nav class="pagination" aria-label="Pagination">
-      {% if result.page > 1 %}<a href="{{ lease_url(query, selected_subnet, result.page - 1) }}">← {{ t("previous") }}</a>{% endif %}
-      <span>{{ t("page") }} {{ result.page }} {{ t("of") }} {{ result.pages }}</span>
-      {% if result.page < result.pages %}<a href="{{ lease_url(query, selected_subnet, result.page + 1) }}">{{ t("next") }} →</a>{% endif %}
-    </nav>
-  {% endif %}
+  {% if result.pages > 1 %}<nav class="pagination" aria-label="{{ t('pagination') }}">
+    {% if result.page > 1 %}<a href="{{ lease_url(query, selected_subnet, result.page - 1, page_size_token, filters) }}">← {{ t("previous") }}</a>{% endif %}
+    <span>{{ t("page") }} {{ result.page }} {{ t("of") }} {{ result.pages }}</span>
+    {% if result.page < result.pages %}<a href="{{ lease_url(query, selected_subnet, result.page + 1, page_size_token, filters) }}">{{ t("next") }} →</a>{% endif %}
+  </nav>{% endif %}
+  <div class="table-toolbar table-toolbar-bottom">{{ page_size_selector("bottom") }}</div>
   <p class="refreshed">{{ t("refreshed") }}: {{ snapshot.snapshot.refreshed_at.strftime("%Y-%m-%d %H:%M:%S %Z") }}</p>
 {% endblock %}

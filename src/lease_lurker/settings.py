@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import yaml
 from pydantic import BaseModel, Field, HttpUrl, SecretStr, model_validator
@@ -42,13 +43,31 @@ class SubnetRule(BaseModel):
 
 class WebSettings(BaseModel):
     default_locale: str = "de"
-    page_size: int = Field(default=50, ge=10, le=200)
+    page_size: Annotated[int, Field(ge=10, le=200)] | None = 50
+    page_size_options: list[Annotated[int, Field(ge=10, le=200)] | None] = Field(
+        default_factory=lambda: [25, 50, 100, 200, None]
+    )
+    hostname_regex: str | None = Field(default=None, min_length=1, max_length=500)
 
     @model_validator(mode="after")
     def supported_locale(self) -> WebSettings:
         if self.default_locale not in {"de", "en"}:
             raise ValueError("default_locale must be 'de' or 'en'")
+        if len(self.page_size_options) != len(set(self.page_size_options)):
+            raise ValueError("page_size_options must be unique")
+        if self.hostname_regex is not None:
+            try:
+                re.compile(self.hostname_regex, re.IGNORECASE)
+            except re.error as exc:
+                raise ValueError(f"hostname_regex is invalid: {exc}") from exc
         return self
+
+    @property
+    def allowed_page_sizes(self) -> tuple[int | None, ...]:
+        values = list(self.page_size_options)
+        if self.page_size not in values:
+            values.append(self.page_size)
+        return tuple(values)
 
 
 class Settings(BaseModel):

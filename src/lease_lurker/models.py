@@ -38,6 +38,7 @@ class LeaseView:
     subnet: Subnet
     vendor: str | None
     device_name: str | None
+    hostname_valid: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

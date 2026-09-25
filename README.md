@@ -8,7 +8,9 @@ LeaseLurker ist ein ausschließlich lesendes Webinterface für aktive IPv4-Lease
 eines Kea-DHCP-Servers. Enduser können anhand eines Hostname-, IP- oder
 MAC-Adressfragments die aktuelle IP-Adresse ihres Rechners ermitteln. Die
 Listenansicht stellt freigegebene Subnetze als Tabs dar und unterstützt ein
-automatisches sowie manuell umschaltbares helles und dunkles Farbschema.
+automatisches sowie manuell umschaltbares helles und dunkles Farbschema. Filter
+in den Spaltenüberschriften grenzen Hostname, IP-Adresse, MAC-Adresse,
+Hersteller und Restlaufzeit ein.
 
 > **Hinweis zum Projektstatus:** LeaseLurker ist ein Arbeitsprojekt, das im
 > Rahmen der beruflichen Tätigkeit am Karlsruher Institut für Technologie (KIT)
@@ -86,6 +88,24 @@ in `compose.yaml`, `config.yaml` oder ein Container-Image eingetragen werden.
 Der `config-get`-Fallback verarbeitet aus der Antwort ausschließlich Subnetz-ID,
 Präfix und Shared-Network-Name. Die vollständige Kea-Konfiguration wird weder
 gespeichert noch protokolliert oder an das Webinterface weitergegeben.
+
+Seitengröße und angebotene Auswahlwerte werden im Abschnitt `web` festgelegt.
+Der Wert `null` bietet Endusern eine ungegliederte Ansicht aller gefilterten
+Clients an. Die individuelle Auswahl wird sowohl als URL-Parameter als auch im
+Browser-Cookie gespeichert:
+
+```yaml
+web:
+  default_locale: de
+  page_size: 50
+  page_size_options: [25, 50, 100, 200, null]
+  hostname_regex: '(iai|elab)-([a-z]+\d{3}|[a-z\d]+)'
+```
+
+`hostname_regex` ist optional. Ist ein Ausdruck gesetzt, markiert die Tabelle
+Kea-Hostnamen, die ihm nicht vollständig entsprechen. Die Prüfung ignoriert
+Groß- und Kleinschreibung. Ein ungültiger Ausdruck verhindert den Start mit
+einem Konfigurationsfehler.
 
 ## Qualität und Tests
 

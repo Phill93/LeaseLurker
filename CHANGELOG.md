@@ -6,11 +6,24 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-25
+
 ### Hinzugefügt
 
 - App-Icon (Lurker) als Favicon, Apple-Touch-Icon und README-Grafik.
 - Icon-Herkunft im README: mit Gemini 3.1 Flash Image (Google) generiert, über die
   MIT-Lizenz des Projekts freigegeben.
+- Konfigurierbare Filtermenüs für Hostname, IP-Adresse, MAC-Adresse, Hersteller
+  und Restlaufzeit direkt in der Lease-Tabelle.
+- Optionale Regex-Prüfung für Kea-Hostnamen mit sichtbarer Warnmarkierung.
+- Individuell auswählbare und im Browser gespeicherte Seitengröße einschließlich
+  einer konfigurierbaren Ansicht aller Clients.
+
+### Geändert
+
+- Die Lease-Tabelle nutzt auf großen Bildschirmen mehr verfügbare Breite.
+- Suche, Subnetz-Tabs, Filter, Aktualisierung und Pagination erhalten sämtliche
+  aktiven Ansichtsparameter.
 
 ## [0.2.0] - 2026-09-24
 
@@ -99,7 +112,8 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Non-Root-Container, Compose-Konfiguration und lokaler Kea-Entwicklungsmock.
 - GitHub-CI für Formatierung, Linting, Typprüfung, Tests, Security und Image-Build.
 
-[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Phill93/LeaseLurker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Phill93/LeaseLurker/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Phill93/LeaseLurker/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Phill93/LeaseLurker/compare/v0.1.4...v0.1.5

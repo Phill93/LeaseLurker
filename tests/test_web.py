@@ -47,7 +47,7 @@ async def test_html_search_is_localized_and_escaped(settings, now) -> None:
         assert "<script>alert(1)</script>" not in response.text
         assert "&lt;script&gt;" in response.text
         assert "Office <span>192.0.2.0/24</span>" in response.text
-        assert 'href="/leases?subnet=3"' in response.text
+        assert 'href="/leases?subnet=3&amp;per_page=10"' in response.text
         assert "Lab <span>203.0.113.0/24</span>" in response.text
         assert 'class="theme-toggle"' in response.text
         assert "lease-lurker-theme" in response.text
@@ -87,12 +87,15 @@ async def test_subnet_tabs_filter_and_preserve_query(settings, now) -> None:
     async with app_client(app) as client:
         selected = await client.get("/leases?q=pc&subnet=1")
         assert selected.status_code == 200
-        assert 'href="/leases?q=pc&amp;subnet=1" aria-current="page"' in selected.text
+        assert (
+            'href="/leases?q=pc&amp;subnet=1&amp;per_page=10" aria-current="page"'
+            in selected.text
+        )
         assert "<th>Subnetz</th>" not in selected.text
 
         unknown = await client.get("/leases?subnet=999")
         assert unknown.status_code == 200
-        assert 'href="/leases" aria-current="page"' in unknown.text
+        assert 'href="/leases?per_page=10" aria-current="page"' in unknown.text
         assert "<th>Subnetz</th>" in unknown.text
 
         empty = await client.get("/leases?subnet=3")
@@ -103,6 +106,43 @@ async def test_subnet_tabs_filter_and_preserve_query(settings, now) -> None:
 def test_lease_url_preserves_filter_and_pagination() -> None:
     assert _lease_url("lab pc", 3, 2) == "/leases?q=lab+pc&subnet=3&page=2"
     assert _lease_url("", None) == "/leases"
+
+
+async def test_page_size_url_cookie_and_all_option(settings, now) -> None:
+    provider = FakeProvider(
+        [make_lease(now, hostname=f"pc-{index:03}") for index in range(12)]
+    )
+    service = LeaseService(
+        provider, settings, VendorLookup({}), NoNames(), clock=lambda: now
+    )
+    app = create_app(settings, service)
+    async with app_client(app) as client:
+        response = await client.get("/leases?per_page=all")
+        assert response.status_code == 200
+        assert response.text.count("<tbody>") == 1
+        assert "Seite 1 von" not in response.text
+        assert "lease_lurker_page_size=all" in response.headers["set-cookie"]
+
+        cookie_response = await client.get("/leases")
+        assert '<option value="all" selected>Alle</option>' in cookie_response.text
+
+        invalid = await client.get("/leases?per_page=invalid")
+        assert '<option value="10" selected>10</option>' in invalid.text
+
+
+async def test_column_filters_and_hostname_warning_are_rendered(settings, now) -> None:
+    configured = settings.model_copy(deep=True)
+    configured.web.hostname_regex = r"(iai|elab)-([a-z]+\d{3}|[a-z\d]+)"
+    app, _ = make_test_app(configured, now)
+    async with app_client(app) as client:
+        response = await client.get(
+            "/leases?hostname=script&vendor=Example%20Vendor&remaining_max_minutes=120&hostname_warning=true"
+        )
+        assert response.status_code == 200
+        assert "Der Kea-Hostname entspricht nicht" in response.text
+        assert 'class="column-filter active"' in response.text
+        assert "Alle Filter zurücksetzen" in response.text
+        assert 'name="remaining_max_minutes" value="120"' in response.text
 
 
 async def test_unavailable_page_and_readiness(settings, now) -> None:
