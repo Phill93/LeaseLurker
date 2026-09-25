@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Form, Query, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -36,6 +36,20 @@ def _remaining(expires_at: datetime, now: datetime) -> str:
     if hours:
         return f"{hours} h {minutes} min"
     return f"{minutes} min"
+
+
+def _optional_positive_int(value: str | None, field: str) -> int | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"{field} must be an integer"
+        ) from exc
+    if parsed < 1:
+        raise HTTPException(status_code=422, detail=f"{field} must be at least 1")
+    return parsed
 
 
 def create_app(
@@ -105,27 +119,29 @@ def create_app(
         request: Request,
         q: str = Query(default="", max_length=100),
         page: int = Query(default=1, ge=1),
-        subnet: int | None = Query(default=None, ge=1),
+        subnet: str | None = Query(default=None, max_length=20),
         per_page: str | None = Query(default=None, max_length=10),
         hostname: str = Query(default="", max_length=100),
         ip: str = Query(default="", max_length=45),
         mac: str = Query(default="", max_length=50),
         vendor: str = Query(default="", max_length=200),
-        remaining_max_minutes: int | None = Query(default=None, ge=1),
+        remaining_max_minutes: str | None = Query(default=None, max_length=10),
         hostname_warning: bool = Query(default=False),
     ) -> HTMLResponse:
         return await render_leases(
             request,
             q,
             page,
-            subnet,
+            _optional_positive_int(subnet, "subnet"),
             per_page=per_page,
             filters=LeaseFilters(
                 hostname=hostname,
                 ip=ip,
                 mac=mac,
                 vendor=vendor,
-                remaining_max_minutes=remaining_max_minutes,
+                remaining_max_minutes=_optional_positive_int(
+                    remaining_max_minutes, "remaining_max_minutes"
+                ),
                 hostname_warning=hostname_warning,
             ),
         )
@@ -134,13 +150,13 @@ def create_app(
     async def refresh(
         request: Request,
         q: str = Form(default=""),
-        subnet: int | None = Form(default=None, ge=1),
+        subnet: str | None = Form(default=None),
         per_page: str | None = Form(default=None),
         hostname: str = Form(default=""),
         ip: str = Form(default=""),
         mac: str = Form(default=""),
         vendor: str = Form(default=""),
-        remaining_max_minutes: int | None = Form(default=None),
+        remaining_max_minutes: str | None = Form(default=None),
         hostname_warning: bool = Form(default=False),
     ) -> RedirectResponse:
         now = time.monotonic()
@@ -152,14 +168,16 @@ def create_app(
                 LOGGER.warning("Manual lease refresh failed")
         target = _lease_url(
             q,
-            subnet,
+            _optional_positive_int(subnet, "subnet"),
             per_page=per_page,
             filters=LeaseFilters(
                 hostname=hostname,
                 ip=ip,
                 mac=mac,
                 vendor=vendor,
-                remaining_max_minutes=remaining_max_minutes,
+                remaining_max_minutes=_optional_positive_int(
+                    remaining_max_minutes, "remaining_max_minutes"
+                ),
                 hostname_warning=hostname_warning,
             ),
         )
@@ -376,7 +394,7 @@ def _lease_url(
         parameters["subnet"] = subnet
     if page > 1:
         parameters["page"] = page
-    if per_page is not None:
+    if per_page:
         parameters["per_page"] = per_page
     selected_filters = filters or LeaseFilters()
     if selected_filters.hostname:

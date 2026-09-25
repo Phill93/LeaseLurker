@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import httpx
+import pytest
 from fastapi import FastAPI
 
 from lease_lurker.service import LeaseService
@@ -143,6 +144,66 @@ async def test_column_filters_and_hostname_warning_are_rendered(settings, now) -
         assert 'class="column-filter active"' in response.text
         assert "Alle Filter zurücksetzen" in response.text
         assert 'name="remaining_max_minutes" value="120"' in response.text
+
+
+async def test_empty_remaining_filter_is_ignored(settings, now) -> None:
+    configured = settings.model_copy(deep=True)
+    configured.web.hostname_regex = r"(iai|elab)-([a-z]+\d{3}|[a-z\d]+)"
+    app, _ = make_test_app(configured, now)
+    async with app_client(app) as client:
+        response = await client.get(
+            "/leases?hostname_warning=true&remaining_max_minutes="
+        )
+        assert response.status_code == 200
+        assert 'name="hostname_warning" value="true" checked' in response.text
+
+        refreshed = await client.post(
+            "/refresh",
+            data={"hostname_warning": "true", "remaining_max_minutes": ""},
+            follow_redirects=False,
+        )
+        assert refreshed.status_code == 303
+        assert refreshed.headers["location"] == "/leases?hostname_warning=true"
+
+
+async def test_all_optional_form_values_may_be_empty(settings, now) -> None:
+    app, _ = make_test_app(settings, now)
+    empty_fields = {
+        "subnet": "",
+        "per_page": "",
+        "hostname": "",
+        "ip": "",
+        "mac": "",
+        "vendor": "",
+        "remaining_max_minutes": "",
+    }
+    async with app_client(app) as client:
+        response = await client.get("/leases", params=empty_fields)
+        assert response.status_code == 200
+
+        refreshed = await client.post(
+            "/refresh", data=empty_fields, follow_redirects=False
+        )
+        assert refreshed.status_code == 303
+        assert refreshed.headers["location"] == "/leases"
+
+
+@pytest.mark.parametrize(
+    ("parameter", "value"),
+    [
+        ("remaining_max_minutes", "invalid"),
+        ("remaining_max_minutes", "0"),
+        ("subnet", "invalid"),
+        ("subnet", "0"),
+    ],
+)
+async def test_invalid_optional_numbers_return_422(
+    settings, now, parameter: str, value: str
+) -> None:
+    app, _ = make_test_app(settings, now)
+    async with app_client(app) as client:
+        response = await client.get("/leases", params={parameter: value})
+        assert response.status_code == 422
 
 
 async def test_unavailable_page_and_readiness(settings, now) -> None:

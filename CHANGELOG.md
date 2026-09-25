@@ -6,6 +6,13 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-25
+
+### Behoben
+
+- Leere optionale Zahlenfelder für Restlaufzeit und Subnetz werden als nicht
+  gesetzte Filter behandelt und verursachen keinen HTTP-422-Fehler mehr.
+
 ## [0.3.0] - 2026-09-25
 
 ### Hinzugefügt
@@ -112,7 +119,8 @@ und die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 - Non-Root-Container, Compose-Konfiguration und lokaler Kea-Entwicklungsmock.
 - GitHub-CI für Formatierung, Linting, Typprüfung, Tests, Security und Image-Build.
 
-[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Phill93/LeaseLurker/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Phill93/LeaseLurker/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Phill93/LeaseLurker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Phill93/LeaseLurker/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Phill93/LeaseLurker/compare/v0.1.5...v0.1.6
